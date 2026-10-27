@@ -1,25 +1,43 @@
 extends CharacterBody2D
 
+# Player movement variables
+@export var move_speed: float = 200.0
+@export var sprint_multiplier: float = 1.8
 
-const SPEED = 300.0
-const JUMP_VELOCITY = -400.0
+# Player jump variables
+@export var jump_height: float = 100.0
+@export var jump_time_to_peak: float = 0.5
+@export var jump_time_to_descent: float = 0.4
 
+# Player state variables
+@onready var jump_velocity: float = ((2.0 * jump_height) / jump_time_to_peak) * -1.0
+@onready var jump_gravity: float = ((-2.0 * jump_height) / (jump_time_to_peak * jump_time_to_peak)) * -1.0
+@onready var fall_gravity: float = ((-2.0 * jump_height) / (jump_time_to_descent * jump_time_to_descent)) * -1.0
+
+var is_sprinting: bool = false
 
 func _physics_process(delta: float) -> void:
-	# Add the gravity.
-	if not is_on_floor():
-		velocity += get_gravity() * delta
+	velocity.y += get_jump_gravity() * delta
+	velocity.x = get_input_velocity() * get_current_speed()
 
-	# Handle jump.
-	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
-		velocity.y = JUMP_VELOCITY
-
-	# Get the input direction and handle the movement/deceleration.
-	# As good practice, you should replace UI actions with custom gameplay actions.
-	var direction := Input.get_axis("ui_left", "ui_right")
-	if direction:
-		velocity.x = direction * SPEED
-	else:
-		velocity.x = move_toward(velocity.x, 0, SPEED)
-
+	if Input.is_action_just_pressed("jump") and is_on_floor():
+		jump()
+	
 	move_and_slide()
+
+func get_jump_gravity() -> float:
+	if velocity.y < 0.0:
+		return jump_gravity
+	else:
+		return fall_gravity
+
+func get_input_velocity() -> float:
+	return Input.get_axis("move_left", "move_right")
+
+func get_current_speed() -> float:
+	if is_on_floor():
+		is_sprinting = Input.is_action_pressed("sprint")
+	return move_speed * sprint_multiplier if is_sprinting else move_speed
+
+func jump() -> void:
+	velocity.y = jump_velocity
